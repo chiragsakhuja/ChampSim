@@ -510,6 +510,7 @@ int main(int argc, char** argv)
 
     // initialize knobs
     uint8_t show_heartbeat = 1;
+    uint8_t temporal_stats = 1;
 
     uint32_t seed_number = 0;
 
@@ -524,6 +525,7 @@ int main(int argc, char** argv)
             {"cloudsuite", no_argument, 0, 'c'},
             {"low_bandwidth",  no_argument, 0, 'b'},
             {"traces",  no_argument, 0, 't'},
+            {"temporal_stats",  no_argument, 0, 's'},
             {0, 0, 0, 0}      
         };
 
@@ -556,6 +558,9 @@ int main(int argc, char** argv)
                 break;
             case 't':
                 traces_encountered = 1;
+                break;
+            case 's':
+                temporal_stats = 1;
                 break;
             default:
                 abort();
@@ -791,12 +796,30 @@ int main(int argc, char** argv)
     start_time = time(NULL);
     uint8_t run_simulation = 1;
     while (run_simulation) {
-
         uint64_t elapsed_second = (uint64_t)(time(NULL) - start_time),
                  elapsed_minute = elapsed_second / 60,
                  elapsed_hour = elapsed_minute / 60;
         elapsed_minute -= elapsed_hour*60;
         elapsed_second -= (elapsed_hour*3600 + elapsed_minute*60);
+
+        if(all_warmup_complete > NUM_CPUS && temporal_stats && current_core_cycle[0] % 100000 == 0) {
+            CACHE * caches[4] = { &ooo_cpu[0].L1D, &ooo_cpu[0].L1I, &ooo_cpu[0].L2C, &uncore.LLC };
+
+            cout << "stat," << current_core_cycle[0] << ',';
+            for(uint32_t cache_idx = 0; cache_idx < 4; ++cache_idx) {
+                uint64_t accesses = 0, hits = 0, misses = 0;
+                for (uint32_t type = 0; type < NUM_TYPES; ++type) {
+                    accesses += caches[cache_idx]->sim_access[0][type];
+                    hits += caches[cache_idx]->sim_hit[0][type];
+                    misses += caches[cache_idx]->sim_miss[0][type];
+                }
+
+                cout << accesses << ',' << hits << ',' << misses << ',';
+            }
+
+            cout << (1000.0*ooo_cpu[0].branch_mispredictions)/(ooo_cpu[0].num_retired - ooo_cpu[0].warmup_instructions) << endl;
+        }
+
 
         for (int i=0; i<NUM_CPUS; i++) {
             // proceed one cycle

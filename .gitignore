@@ -9,3 +9,6 @@ inc/champsim.h.bak
 
 bin/
 obj/
+
+tracer/merge_traces
+tracer/thrash
