@@ -525,6 +525,7 @@ int main(int argc, char** argv)
             {"cloudsuite", no_argument, 0, 'c'},
             {"low_bandwidth",  no_argument, 0, 'b'},
             {"traces",  no_argument, 0, 't'},
+            {"stdin",  no_argument, 0, 't'},
             {"temporal_stats",  no_argument, 0, 's'},
             {0, 0, 0, 0}      
         };
@@ -682,6 +683,16 @@ int main(int argc, char** argv)
         }
         else if(strcmp(argv[i],"-traces") == 0) {
             found_traces = 1;
+        }
+        else if(strcmp(argv[i],"-stdin") == 0) {
+            assert(NUM_CPUS == 1);
+            printf("CPU %d runs standard input\n", count_traces);
+
+            strcpy(ooo_cpu[count_traces].trace_string, "/dev/stdin");
+            sprintf(ooo_cpu[count_traces].trace_string, "%s", argv[i]);
+            ooo_cpu[count_traces].trace_file = fdopen(0, "r");
+            count_traces++;
+            break;
         }
     }
 

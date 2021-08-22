@@ -31,6 +31,7 @@ void O3_CPU::read_from_trace()
                 // reached end of file for this trace
                 cout << "*** Reached end of trace for Core: " << cpu << " Repeating trace: " << trace_string << endl; 
 
+                assert(0);
                 // close the trace file and re-open it
                 pclose(trace_file);
                 trace_file = popen(gunzip_command, "r");
