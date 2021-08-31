@@ -6,6 +6,10 @@
 #include <random>
 #include <sys/types.h>
 #include <unistd.h>
+# if __GLIBC__ == 2 && __GLIBC_MINOR__ < 30
+    #include <sys/syscall.h>
+    #define gettid() syscall(SYS_gettid)
+#endif
 #include <signal.h>
 
 static constexpr uint32_t NumInstrDestinations = 2;
@@ -112,6 +116,7 @@ int main(int argc, char ** argv)
 
         uint32_t thread_idx = scheduler.schedule(thread_head);
         if (handles[thread_idx]->read(reinterpret_cast<char *>(&inst), sizeof(Inst))) {
+            inst.is_branch |= ((thread_idx + 1) & 0x7F) << 1;
             output.write(reinterpret_cast<char *>(&inst), sizeof(Inst));
             if (output.bad()) {
                 output.close();

@@ -40,14 +40,14 @@ void O3_CPU::read_from_trace()
                     assert(0);
                 }
             } else { // successfully read the trace
-
                 // copy the instruction into the performance model's instruction format
                 ooo_model_instr arch_instr;
                 int num_reg_ops = 0, num_mem_ops = 0;
 
                 arch_instr.instr_id = instr_unique_id;
                 arch_instr.ip = current_cloudsuite_instr.ip;
-                arch_instr.is_branch = current_cloudsuite_instr.is_branch;
+                arch_instr.pid = (current_cloudsuite_instr.is_branch >> 1) & 0x7F;
+                arch_instr.is_branch = current_cloudsuite_instr.is_branch & 0x1;
                 arch_instr.branch_taken = current_cloudsuite_instr.branch_taken;
 
                 arch_instr.asid[0] = current_cloudsuite_instr.asid[0];
@@ -176,7 +176,8 @@ void O3_CPU::read_from_trace()
 
                 arch_instr.instr_id = instr_unique_id;
                 arch_instr.ip = current_instr.ip;
-                arch_instr.is_branch = current_instr.is_branch;
+                arch_instr.pid = (current_instr.is_branch >> 1) & 0x7F;
+                arch_instr.is_branch = current_instr.is_branch & 0x1;
                 arch_instr.branch_taken = current_instr.branch_taken;
 
                 arch_instr.asid[0] = cpu;
