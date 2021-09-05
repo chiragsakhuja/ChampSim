@@ -1,8 +1,8 @@
 #!/bin/bash
 
-if [ "$#" -ne 7 ]; then
+if [ "$#" -ne 8 ]; then
     echo "Illegal number of parameters"
-    echo "Usage: ./build_champsim.sh [branch_pred] [l1d_pref] [l2c_pref] [llc_pref] [llc_repl] [num_core]"
+    echo "Usage: ./build_champsim.sh [branch_pred] [l1d_pref] [l2c_pref] [llc_pref] [llc_repl] [num_core] [num_thread]"
     exit 1
 fi
 
@@ -14,6 +14,7 @@ L2C_PREFETCHER=$4   # prefetcher/*.l2c_pref
 LLC_PREFETCHER=$5   # prefetcher/*.llc_pref
 LLC_REPLACEMENT=$6  # replacement/*.llc_repl
 NUM_CORE=$7         # tested up to 8-core system
+NUM_THREADS=$8         # tested up to 8-core system
 
 ############## Some useful macros ###############
 BOLD=$(tput bold)
@@ -70,6 +71,11 @@ if ! [[ $NUM_CORE =~ $re ]] ; then
     exit 1
 fi
 
+if ! [[ $NUM_THREADS =~ $re ]]; then
+    echo "[ERROR]: num_thread is NOT a number" >&2;
+    exit 1
+fi
+
 # Check for multi-core
 if [ "$NUM_CORE" -gt "1" ]; then
     echo "Building multi-core ChampSim..."
@@ -85,6 +91,20 @@ else
     fi
 fi
 echo
+
+# Check for multiple threads
+if [ "$NUM_THREADS" -gt "1" ]; then
+    sed -i.bak 's/\<NUM_THREADS 1\>/NUM_THREADS '${NUM_THREADS}'/g' inc/champsim.h
+else
+    if [ "$NUM_THREADS" -lt "1" ]; then
+        echo "Number of core: $NUM_THREADS must be greater or equal than 1"
+        exit 1
+    else
+        echo "Building single-core ChampSim..."
+    fi
+fi
+echo
+
 
 # Change prefetchers and replacement policy
 cp branch/${BRANCH}.bpred branch/branch_predictor.cc
@@ -116,7 +136,8 @@ echo "L2C Prefetcher: ${L2C_PREFETCHER}"
 echo "LLC Prefetcher: ${LLC_PREFETCHER}"
 echo "LLC Replacement: ${LLC_REPLACEMENT}"
 echo "Cores: ${NUM_CORE}"
-BINARY_NAME="${BRANCH}-${L1I_PREFETCHER}-${L1D_PREFETCHER}-${L2C_PREFETCHER}-${LLC_PREFETCHER}-${LLC_REPLACEMENT}-${NUM_CORE}core"
+echo "Threads: ${NUM_THREADS}"
+BINARY_NAME="${BRANCH}-${L1I_PREFETCHER}-${L1D_PREFETCHER}-${L2C_PREFETCHER}-${LLC_PREFETCHER}-${LLC_REPLACEMENT}-${NUM_CORE}core-${NUM_THREADS}thread"
 echo "Binary: bin/${BINARY_NAME}"
 echo ""
 mv bin/champsim bin/${BINARY_NAME}

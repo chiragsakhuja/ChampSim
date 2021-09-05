@@ -15,6 +15,7 @@ uint8_t warmup_complete[NUM_CPUS],
 
 uint64_t warmup_instructions     = 1000000,
          simulation_instructions = 10000000,
+         temporal_stat_period    = 0,
          champsim_seed;
 
 time_t start_time;
@@ -27,10 +28,12 @@ uint64_t previous_ppage, num_adjacent_page, num_cl[NUM_CPUS], allocated_pages, n
 
 void record_roi_stats(uint32_t cpu, CACHE *cache)
 {
-    for (uint32_t i=0; i<NUM_TYPES; i++) {
-        cache->roi_access[cpu][i] = cache->sim_access[cpu][i];
-        cache->roi_hit[cpu][i] = cache->sim_hit[cpu][i];
-        cache->roi_miss[cpu][i] = cache->sim_miss[cpu][i];
+    for(uint32_t tid=0; tid<NUM_THREADS; ++tid) {
+        for (uint32_t i=0; i<NUM_TYPES; i++) {
+            cache->roi_access[cpu][tid][i] = cache->sim_access[cpu][tid][i];
+            cache->roi_hit[cpu][tid][i] = cache->sim_hit[cpu][tid][i];
+            cache->roi_miss[cpu][tid][i] = cache->sim_miss[cpu][tid][i];
+        }
     }
 }
 
@@ -38,10 +41,12 @@ void print_roi_stats(uint32_t cpu, CACHE *cache)
 {
     uint64_t TOTAL_ACCESS = 0, TOTAL_HIT = 0, TOTAL_MISS = 0;
 
-    for (uint32_t i=0; i<NUM_TYPES; i++) {
-        TOTAL_ACCESS += cache->roi_access[cpu][i];
-        TOTAL_HIT += cache->roi_hit[cpu][i];
-        TOTAL_MISS += cache->roi_miss[cpu][i];
+    for(uint32_t tid=0; tid<NUM_THREADS; ++tid) {
+        for (uint32_t i=0; i<NUM_TYPES; i++) {
+            TOTAL_ACCESS += cache->roi_access[cpu][tid][i];
+            TOTAL_HIT += cache->roi_hit[cpu][tid][i];
+            TOTAL_MISS += cache->roi_miss[cpu][tid][i];
+        }
     }
 
     cout << cache->NAME;
@@ -72,10 +77,12 @@ void print_sim_stats(uint32_t cpu, CACHE *cache)
 {
     uint64_t TOTAL_ACCESS = 0, TOTAL_HIT = 0, TOTAL_MISS = 0;
 
-    for (uint32_t i=0; i<NUM_TYPES; i++) {
-        TOTAL_ACCESS += cache->sim_access[cpu][i];
-        TOTAL_HIT += cache->sim_hit[cpu][i];
-        TOTAL_MISS += cache->sim_miss[cpu][i];
+    for(uint32_t tid=0; tid<NUM_THREADS; ++tid) {
+        for (uint32_t i=0; i<NUM_TYPES; i++) {
+            TOTAL_ACCESS += cache->sim_access[cpu][tid][i];
+            TOTAL_HIT += cache->sim_hit[cpu][tid][i];
+            TOTAL_MISS += cache->sim_miss[cpu][tid][i];
+        }
     }
 
     cout << cache->NAME;
@@ -145,9 +152,11 @@ void reset_cache_stats(uint32_t cpu, CACHE *cache)
         cache->MSHR_MERGED[i] = 0;
         cache->STALL[i] = 0;
 
-        cache->sim_access[cpu][i] = 0;
-        cache->sim_hit[cpu][i] = 0;
-        cache->sim_miss[cpu][i] = 0;
+        for(uint32_t tid=0; tid<NUM_THREADS; ++tid) {
+            cache->sim_access[cpu][tid][i] = 0;
+            cache->sim_hit[cpu][tid][i] = 0;
+            cache->sim_miss[cpu][tid][i] = 0;
+        }
     }
 
     cache->total_miss_latency = 0;
@@ -510,7 +519,6 @@ int main(int argc, char** argv)
 
     // initialize knobs
     uint8_t show_heartbeat = 1;
-    uint8_t temporal_stats = 1;
 
     uint32_t seed_number = 0;
 
@@ -526,7 +534,7 @@ int main(int argc, char** argv)
             {"low_bandwidth",  no_argument, 0, 'b'},
             {"traces",  no_argument, 0, 't'},
             {"stdin",  no_argument, 0, 't'},
-            {"temporal_stats",  no_argument, 0, 's'},
+            {"temporal_stat_period",  required_argument, 0, 's'},
             {0, 0, 0, 0}      
         };
 
@@ -561,7 +569,7 @@ int main(int argc, char** argv)
                 traces_encountered = 1;
                 break;
             case 's':
-                temporal_stats = 1;
+                temporal_stat_period = atol(optarg);
                 break;
             default:
                 abort();
@@ -806,6 +814,21 @@ int main(int argc, char** argv)
     // simulation entry point
     start_time = time(NULL);
     uint8_t run_simulation = 1;
+    if(temporal_stat_period > 0) {
+        cout << "stat,cycle,";
+        static const char * cache_labels[] = {"L1d", "L1i", "L2", "LLC"};
+        for(uint32_t cache_idx = 0; cache_idx < 4; ++cache_idx) {
+            for(uint32_t tid = 0; tid < NUM_THREADS; ++tid) {
+                cout << "accesses_" << cache_labels[cache_idx] << "_thread" << tid << ",";
+                cout << "hits_" << cache_labels[cache_idx] << "_thread" << tid << ",";
+                cout << "misses_" << cache_labels[cache_idx] << "_thread" << tid << ",";
+            }
+            cout << "total_accesses_" << cache_labels[cache_idx] << ",";
+            cout << "total_hits_" << cache_labels[cache_idx] << ",";
+            cout << "total_misses_" << cache_labels[cache_idx] << ",";
+        }
+        cout << "done\n";
+    }
     while (run_simulation) {
         uint64_t elapsed_second = (uint64_t)(time(NULL) - start_time),
                  elapsed_minute = elapsed_second / 60,
@@ -813,22 +836,30 @@ int main(int argc, char** argv)
         elapsed_minute -= elapsed_hour*60;
         elapsed_second -= (elapsed_hour*3600 + elapsed_minute*60);
 
-        if(all_warmup_complete > NUM_CPUS && temporal_stats && current_core_cycle[0] % 100000 == 0) {
+        if(all_warmup_complete > NUM_CPUS && temporal_stat_period > 0 && current_core_cycle[0] % temporal_stat_period == 0) {
             CACHE * caches[4] = { &ooo_cpu[0].L1D, &ooo_cpu[0].L1I, &ooo_cpu[0].L2C, &uncore.LLC };
 
             cout << "stat," << current_core_cycle[0] << ',';
             for(uint32_t cache_idx = 0; cache_idx < 4; ++cache_idx) {
-                uint64_t accesses = 0, hits = 0, misses = 0;
-                for (uint32_t type = 0; type < NUM_TYPES; ++type) {
-                    accesses += caches[cache_idx]->sim_access[0][type];
-                    hits += caches[cache_idx]->sim_hit[0][type];
-                    misses += caches[cache_idx]->sim_miss[0][type];
+                uint64_t total_accesses = 0, total_hits = 0, total_misses = 0;
+                for(uint32_t tid = 0; tid < NUM_THREADS; ++tid) {
+                    uint64_t accesses = 0, hits = 0, misses = 0;
+                    for (uint32_t type = 0; type < NUM_TYPES; ++type) {
+                        accesses += caches[cache_idx]->sim_access[0][tid][type];
+                        hits += caches[cache_idx]->sim_hit[0][tid][type];
+                        misses += caches[cache_idx]->sim_miss[0][tid][type];
+                    }
+                    cout << accesses << ',' << hits << ',' << misses << ',';
+                    total_accesses += accesses;
+                    total_hits += hits;
+                    total_misses += misses;
                 }
 
-                cout << accesses << ',' << hits << ',' << misses << ',';
+                cout << total_accesses << ',' << total_hits << ',' << total_misses << ',';
             }
+            cout << "done\n";
 
-            cout << (1000.0*ooo_cpu[0].branch_mispredictions)/(ooo_cpu[0].num_retired - ooo_cpu[0].warmup_instructions) << endl;
+            // cout << (1000.0*ooo_cpu[0].branch_mispredictions)/(ooo_cpu[0].num_retired - ooo_cpu[0].warmup_instructions) << endl;
         }
 
 

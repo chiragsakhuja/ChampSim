@@ -87,6 +87,8 @@ class PACKET {
 
     uint32_t pf_metadata;
 
+    uint64_t pid;
+
     uint8_t  is_producer, 
              //rob_index_depend_on_me[ROB_SIZE], 
              //lq_index_depend_on_me[ROB_SIZE], 
@@ -130,6 +132,7 @@ class PACKET {
         returned = 0;
         asid[0] = UINT8_MAX;
         asid[1] = UINT8_MAX;
+        pid = UINT8_MAX;
         type = 0;
 
         fill_level = -1; 
@@ -332,6 +335,7 @@ class LSQ_ENTRY {
              virtual_address,
              physical_address,
              ip,
+             pid,
              event_cycle;
 
     uint32_t rob_index, data_index, sq_index;
@@ -350,6 +354,7 @@ class LSQ_ENTRY {
         virtual_address = 0;
         physical_address = 0;
         ip = 0;
+        pid = UINT8_MAX;
         event_cycle = 0;
 
         rob_index = 0;

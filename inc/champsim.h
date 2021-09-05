@@ -34,6 +34,7 @@
 
 // CPU
 #define NUM_CPUS 1
+#define NUM_THREADS 2
 #define CPU_FREQ 4000
 #define DRAM_IO_FREQ 3200
 #define PAGE_SIZE 4096

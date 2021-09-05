@@ -62,7 +62,6 @@ class input_instr {
 
 class cloudsuite_instr {
   public:
-
     // instruction pointer or PC (Program Counter)
     uint64_t ip;
 
@@ -172,7 +171,7 @@ class ooo_model_instr {
 
     ooo_model_instr() {
         instr_id = 0;
-        pid = 0;
+        pid = UINT8_MAX;
         ip = 0;
         fetch_producer = 0;
         producer_id = 0;

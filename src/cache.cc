@@ -39,8 +39,9 @@ void CACHE::handle_fill()
                 update_replacement_state(fill_cpu, set, way, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].ip, 0, MSHR.entry[mshr_index].type, 0);
 
             // COLLECT STATS
-            sim_miss[fill_cpu][MSHR.entry[mshr_index].type]++;
-            sim_access[fill_cpu][MSHR.entry[mshr_index].type]++;
+            assert(MSHR.entry[mshr_index].pid != UINT8_MAX);
+            sim_miss[fill_cpu][MSHR.entry[mshr_index].pid][MSHR.entry[mshr_index].type]++;
+            sim_access[fill_cpu][MSHR.entry[mshr_index].pid][MSHR.entry[mshr_index].type]++;
 
             // check fill level
             if (MSHR.entry[mshr_index].fill_level < fill_level) {
@@ -109,6 +110,7 @@ void CACHE::handle_fill()
                     writeback_packet.data = block[set][way].data;
                     writeback_packet.instr_id = MSHR.entry[mshr_index].instr_id;
                     writeback_packet.ip = 0; // writeback does not have ip
+                    writeback_packet.pid = MSHR.entry[mshr_index].pid;
                     writeback_packet.type = WRITEBACK;
                     writeback_packet.event_cycle = current_core_cycle[fill_cpu];
 
@@ -150,8 +152,9 @@ void CACHE::handle_fill()
                 update_replacement_state(fill_cpu, set, way, MSHR.entry[mshr_index].full_addr, MSHR.entry[mshr_index].ip, block[set][way].full_addr, MSHR.entry[mshr_index].type, 0);
 
             // COLLECT STATS
-            sim_miss[fill_cpu][MSHR.entry[mshr_index].type]++;
-            sim_access[fill_cpu][MSHR.entry[mshr_index].type]++;
+            assert(MSHR.entry[mshr_index].pid != UINT8_MAX);
+            sim_miss[fill_cpu][MSHR.entry[mshr_index].pid][MSHR.entry[mshr_index].type]++;
+            sim_access[fill_cpu][MSHR.entry[mshr_index].pid][MSHR.entry[mshr_index].type]++;
 
             fill_cache(set, way, &MSHR.entry[mshr_index]);
 
@@ -250,8 +253,9 @@ void CACHE::handle_writeback()
                 update_replacement_state(writeback_cpu, set, way, block[set][way].full_addr, WQ.entry[index].ip, 0, WQ.entry[index].type, 1);
 
             // COLLECT STATS
-            sim_hit[writeback_cpu][WQ.entry[index].type]++;
-            sim_access[writeback_cpu][WQ.entry[index].type]++;
+            assert(WQ.entry[index].pid != UINT8_MAX);
+            sim_hit[writeback_cpu][WQ.entry[index].pid][WQ.entry[index].type]++;
+            sim_access[writeback_cpu][WQ.entry[index].pid][WQ.entry[index].type]++;
 
             // mark dirty
             block[set][way].dirty = 1;
@@ -439,6 +443,7 @@ void CACHE::handle_writeback()
                             writeback_packet.data = block[set][way].data;
                             writeback_packet.instr_id = WQ.entry[index].instr_id;
                             writeback_packet.ip = 0;
+                            writeback_packet.pid = WQ.entry[index].pid;
                             writeback_packet.type = WRITEBACK;
                             writeback_packet.event_cycle = current_core_cycle[writeback_cpu];
 
@@ -479,8 +484,9 @@ void CACHE::handle_writeback()
                         update_replacement_state(writeback_cpu, set, way, WQ.entry[index].full_addr, WQ.entry[index].ip, block[set][way].full_addr, WQ.entry[index].type, 0);
 
                     // COLLECT STATS
-                    sim_miss[writeback_cpu][WQ.entry[index].type]++;
-                    sim_access[writeback_cpu][WQ.entry[index].type]++;
+                    assert(WQ.entry[index].pid != UINT8_MAX);
+                    sim_miss[writeback_cpu][WQ.entry[index].pid][WQ.entry[index].type]++;
+                    sim_access[writeback_cpu][WQ.entry[index].pid][WQ.entry[index].type]++;
 
                     fill_cache(set, way, &WQ.entry[index]);
 
@@ -587,8 +593,9 @@ void CACHE::handle_read()
                     update_replacement_state(read_cpu, set, way, block[set][way].full_addr, RQ.entry[index].ip, 0, RQ.entry[index].type, 1);
 
                 // COLLECT STATS
-                sim_hit[read_cpu][RQ.entry[index].type]++;
-                sim_access[read_cpu][RQ.entry[index].type]++;
+                assert(RQ.entry[index].pid != UINT8_MAX);
+                sim_hit[read_cpu][RQ.entry[index].pid][RQ.entry[index].type]++;
+                sim_access[read_cpu][RQ.entry[index].pid][RQ.entry[index].type]++;
 
                 // check fill level
                 if (RQ.entry[index].fill_level < fill_level) {
@@ -852,8 +859,9 @@ void CACHE::handle_prefetch()
                     update_replacement_state(prefetch_cpu, set, way, block[set][way].full_addr, PQ.entry[index].ip, 0, PQ.entry[index].type, 1);
 
                 // COLLECT STATS
-                sim_hit[prefetch_cpu][PQ.entry[index].type]++;
-                sim_access[prefetch_cpu][PQ.entry[index].type]++;
+                assert(PQ.entry[index].pid != UINT8_MAX);
+                sim_hit[prefetch_cpu][PQ.entry[index].pid][PQ.entry[index].type]++;
+                sim_access[prefetch_cpu][PQ.entry[index].pid][PQ.entry[index].type]++;
 
 		// run prefetcher on prefetches from higher caches
 		if(PQ.entry[index].pf_origin_level < fill_level)
@@ -1307,6 +1315,7 @@ int CACHE::add_rq(PACKET *packet)
     }
 #endif
 
+    assert(packet->pid != UINT8_MAX);
     RQ.entry[index] = *packet;
 
     // ADD LATENCY
@@ -1409,6 +1418,7 @@ int CACHE::prefetch_line(uint64_t ip, uint64_t base_addr, uint64_t pf_addr, int 
             //pf_packet.instr_id = LQ.entry[lq_index].instr_id;
             //pf_packet.rob_index = LQ.entry[lq_index].rob_index;
             pf_packet.ip = ip;
+            // TODO CS: Figure out how to get this info from a PF
             pf_packet.type = PREFETCH;
             pf_packet.event_cycle = current_core_cycle[cpu];
 
@@ -1698,6 +1708,7 @@ int CACHE::check_mshr(PACKET *packet)
 void CACHE::add_mshr(PACKET *packet)
 {
     uint32_t index = 0;
+    assert(packet->pid != UINT8_MAX);
 
     packet->cycle_enqueued = current_core_cycle[packet->cpu];
 

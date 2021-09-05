@@ -598,6 +598,7 @@ void O3_CPU::fetch_instruction()
 	  trace_packet.rob_index = i;
 	  trace_packet.producer = 0; // TODO: check if this guy gets used or not
 	  trace_packet.ip = IFETCH_BUFFER.entry[index].ip;
+	  trace_packet.pid = IFETCH_BUFFER.entry[index].pid;
 	  trace_packet.type = LOAD; 
 	  trace_packet.asid[0] = 0;
 	  trace_packet.asid[1] = 0;
@@ -636,6 +637,7 @@ void O3_CPU::fetch_instruction()
 	  fetch_packet.rob_index = 0;
 	  fetch_packet.producer = 0;
 	  fetch_packet.ip = IFETCH_BUFFER.entry[index].ip;
+	  fetch_packet.pid = IFETCH_BUFFER.entry[index].pid;
 	  fetch_packet.type = LOAD; 
 	  fetch_packet.asid[0] = 0;
 	  fetch_packet.asid[1] = 0;
@@ -1224,6 +1226,7 @@ void O3_CPU::add_load_queue(uint32_t rob_index, uint32_t data_index)
     LQ.entry[lq_index].instr_id = ROB.entry[rob_index].instr_id;
     LQ.entry[lq_index].virtual_address = ROB.entry[rob_index].source_memory[data_index];
     LQ.entry[lq_index].ip = ROB.entry[rob_index].ip;
+    LQ.entry[lq_index].pid = ROB.entry[rob_index].pid;
     LQ.entry[lq_index].data_index = data_index;
     LQ.entry[lq_index].rob_index = rob_index;
     LQ.entry[lq_index].asid[0] = ROB.entry[rob_index].asid[0];
@@ -1408,6 +1411,7 @@ void O3_CPU::add_store_queue(uint32_t rob_index, uint32_t data_index)
     SQ.entry[sq_index].instr_id = ROB.entry[rob_index].instr_id;
     SQ.entry[sq_index].virtual_address = ROB.entry[rob_index].destination_memory[data_index];
     SQ.entry[sq_index].ip = ROB.entry[rob_index].ip;
+    SQ.entry[sq_index].pid = ROB.entry[rob_index].pid;
     SQ.entry[sq_index].data_index = data_index;
     SQ.entry[sq_index].rob_index = rob_index;
     SQ.entry[sq_index].asid[0] = ROB.entry[rob_index].asid[0];
@@ -1465,6 +1469,7 @@ void O3_CPU::operate_lsq()
                 data_packet.instr_id = SQ.entry[sq_index].instr_id;
                 data_packet.rob_index = SQ.entry[sq_index].rob_index;
                 data_packet.ip = SQ.entry[sq_index].ip;
+                data_packet.pid = SQ.entry[sq_index].pid;
                 data_packet.type = RFO;
                 data_packet.asid[0] = SQ.entry[sq_index].asid[0];
                 data_packet.asid[1] = SQ.entry[sq_index].asid[1];
@@ -1548,6 +1553,7 @@ void O3_CPU::operate_lsq()
                 data_packet.instr_id = LQ.entry[lq_index].instr_id;
                 data_packet.rob_index = LQ.entry[lq_index].rob_index;
                 data_packet.ip = LQ.entry[lq_index].ip;
+                data_packet.pid = LQ.entry[lq_index].pid;
                 data_packet.type = LOAD;
                 data_packet.asid[0] = LQ.entry[lq_index].asid[0];
                 data_packet.asid[1] = LQ.entry[lq_index].asid[1];
@@ -1700,6 +1706,7 @@ int O3_CPU::execute_load(uint32_t rob_index, uint32_t lq_index, uint32_t data_in
     data_packet.instr_id = LQ.entry[lq_index].instr_id;
     data_packet.rob_index = LQ.entry[lq_index].rob_index;
     data_packet.ip = LQ.entry[lq_index].ip;
+    data_packet.pid = LQ.entry[lq_index].pid;
     data_packet.type = LOAD;
     data_packet.asid[0] = LQ.entry[lq_index].asid[0];
     data_packet.asid[1] = LQ.entry[lq_index].asid[1];
@@ -2257,6 +2264,7 @@ void O3_CPU::retire_rob()
                         data_packet.instr_id = SQ.entry[sq_index].instr_id;
                         data_packet.rob_index = SQ.entry[sq_index].rob_index;
                         data_packet.ip = SQ.entry[sq_index].ip;
+                        data_packet.pid = SQ.entry[sq_index].pid;
                         data_packet.type = RFO;
                         data_packet.asid[0] = SQ.entry[sq_index].asid[0];
                         data_packet.asid[1] = SQ.entry[sq_index].asid[1];
