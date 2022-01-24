@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Example usage:
-# $PWD/run.sh dist-samples 50000000 250000000 1000000 mcf_250B 1000000 libquantum_1210B 100000
+# $PWD/run_interleave.sh dist-samples 50000000 250000000 1000000 mcf_250B 1000000 libquantum_1210B 100000
 # 
 # Results will be in results/dist-samples/mcf_250B_1000000_libquantum_1210B_100000
 #   - mcf_250B.txt : ChampSim output for individual run of mcf
