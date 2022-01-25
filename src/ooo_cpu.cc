@@ -5,6 +5,7 @@
 O3_CPU ooo_cpu[NUM_CPUS]; 
 uint64_t current_core_cycle[NUM_CPUS], stall_cycle[NUM_CPUS];
 uint32_t SCHEDULING_LATENCY = 0, EXEC_LATENCY = 0, DECODE_LATENCY = 0;
+uint64_t current_fetch_pid = UINT8_MAX;
 
 void O3_CPU::initialize_core()
 {
@@ -47,6 +48,10 @@ void O3_CPU::read_from_trace()
                 arch_instr.instr_id = instr_unique_id;
                 arch_instr.ip = current_cloudsuite_instr.ip;
                 arch_instr.pid = (current_cloudsuite_instr.is_branch >> 1) & 0x7F;
+                if(arch_instr.pid != current_fetch_pid && begin_sim_cycle < current_core_cycle[0]) {
+                    cout << "Switching fetch from PID " << current_fetch_pid << " to " << arch_instr.pid << " @ " << current_core_cycle[0] - begin_sim_cycle << '\n';
+                    current_fetch_pid = arch_instr.pid;
+                }
                 arch_instr.is_branch = current_cloudsuite_instr.is_branch & 0x1;
                 arch_instr.branch_taken = current_cloudsuite_instr.branch_taken;
 
@@ -177,6 +182,10 @@ void O3_CPU::read_from_trace()
                 arch_instr.instr_id = instr_unique_id;
                 arch_instr.ip = current_instr.ip;
                 arch_instr.pid = (current_instr.is_branch >> 1) & 0x7F;
+                if(arch_instr.pid != current_fetch_pid && begin_sim_cycle < current_core_cycle[0]) {
+                    cout << "Switching fetch from PID " << current_fetch_pid << " to " << arch_instr.pid << " @ " << current_core_cycle[0] - begin_sim_cycle << '\n';
+                    current_fetch_pid = arch_instr.pid;
+                }
                 arch_instr.is_branch = current_instr.is_branch & 0x1;
                 arch_instr.branch_taken = current_instr.branch_taken;
 

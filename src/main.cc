@@ -582,6 +582,7 @@ int main(int argc, char** argv)
     // consequences of knobs
     cout << "Warmup Instructions: " << warmup_instructions << endl;
     cout << "Simulation Instructions: " << simulation_instructions << endl;
+    cout << "Temporal Stat Period: " << temporal_stat_period << endl;
     //cout << "Scramble Loads: " << (knob_scramble_loads ? "ture" : "false") << endl;
     cout << "Number of CPUs: " << NUM_CPUS << endl;
     cout << "LLC sets: " << LLC_SET << endl;
@@ -815,7 +816,7 @@ int main(int argc, char** argv)
     start_time = time(NULL);
     uint8_t run_simulation = 1;
     if(temporal_stat_period > 0) {
-        cout << "stat,cycle,";
+        cout << "stat,cycle,retired_instructions,";
         static const char * cache_labels[] = {"L1d", "L1i", "L2", "LLC"};
         for(uint32_t cache_idx = 0; cache_idx < 4; ++cache_idx) {
             for(uint32_t tid = 0; tid < NUM_THREADS; ++tid) {
@@ -839,7 +840,7 @@ int main(int argc, char** argv)
         if(all_warmup_complete > NUM_CPUS && temporal_stat_period > 0 && current_core_cycle[0] % temporal_stat_period == 0) {
             CACHE * caches[4] = { &ooo_cpu[0].L1D, &ooo_cpu[0].L1I, &ooo_cpu[0].L2C, &uncore.LLC };
 
-            cout << "stat," << current_core_cycle[0] << ',';
+            cout << "stat," << current_core_cycle[0] - ooo_cpu[0].begin_sim_cycle << ',' << (ooo_cpu[0].num_retired - ooo_cpu[0].begin_sim_instr) << ',';
             for(uint32_t cache_idx = 0; cache_idx < 4; ++cache_idx) {
                 uint64_t total_accesses = 0, total_hits = 0, total_misses = 0;
                 for(uint32_t tid = 0; tid < NUM_THREADS; ++tid) {
