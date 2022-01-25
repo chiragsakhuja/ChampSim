@@ -31,10 +31,13 @@ struct Inst {
 class ARQ
 {
 public:
-    ARQ(void) : gen{static_cast<long unsigned int>(gettid())},
-                current(0),
-                time_left(0)
-    {}
+    ARQ(uint64_t seed) :
+        gen{static_cast<long unsigned int>(seed)},
+        current(0),
+        time_left(0)
+    {
+        std::cerr << "seed " << seed << "\n";
+    }
 
     // currently does not inspect the candidates
     // (the pre-buffering of the instructions was removed for now, anyway)
@@ -73,16 +76,34 @@ private:
 
 int main(int argc, char ** argv)
 {
-    if(argc < 3) {
-        std::cout << "Usage: " << argv[0] << " output trace [[trace avg-inst-length] ...]\n";
+    int required_argv_start = 1;
+    uint64_t seed = gettid();
+    // Simple argument parsing
+    for(int i = required_argv_start; i < argc; ++i) {
+        if(std::string{argv[i], 0, 2} == "--") {
+            if(std::string{argv[i] + 2} == "seed") {
+                ++i;
+                seed = atol(argv[i]);
+            }
+            required_argv_start = i + 1;
+        }
+    }
+
+
+    if(argc - required_argv_start < 3) {
+        std::cout << "Usage: " << argv[0] << " [option ...] output-trace [[input-trace avg-inst-length] ...]\n";
         std::cout << "  Traces should be uncompressed.\n";
+        std::cout << "\n";
+        std::cout << "  Options:\n";
+        std::cout << "    --seed X    Seed for RNG\n";
         return 0;
     }
 
-    ARQ scheduler;
+    ARQ scheduler{seed};
 
     std::vector<std::shared_ptr<std::ifstream>> handles;
-    for(int i = 2; i < argc; ++i) {
+    for(int i = required_argv_start + 1; i < argc; ++i) {
+        if(std::string{argv[i], 0, 2} == "--") { continue; }
         auto handle = std::make_shared<std::ifstream>(argv[i], std::ios::binary);
         if(handle->is_open()) {
             handles.push_back(handle);
@@ -93,9 +114,9 @@ int main(int argc, char ** argv)
         scheduler.new_thread(atof(argv[i]));
     }
 
-    std::ofstream output(argv[1], std::ios::binary);
+    std::ofstream output(argv[required_argv_start], std::ios::binary);
     if(! output.is_open()) {
-        std::cerr << "ERROR: Couldn't open " << argv[1] << " for writing\n";
+        std::cerr << "ERROR: Couldn't open " << argv[required_argv_start] << " for writing\n";
         return 0;
     }
 
